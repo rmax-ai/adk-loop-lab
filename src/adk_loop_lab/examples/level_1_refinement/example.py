@@ -44,6 +44,13 @@ def _attach_fake_callback(*agents: Any) -> None:
         agent.before_model_callback = callback
 
 
+def _get_fake_response(prompt: str) -> str:
+    for fragment, response in FAKE_SCRIPT._responses:
+        if fragment in prompt:
+            return response
+    raise ValueError(f"No fake response registered for prompt: {prompt}")
+
+
 def _parse_critique(raw_critique: str) -> dict[str, Any]:
     payload = json.loads(raw_critique)
     score = float(payload["score"])
@@ -78,6 +85,8 @@ async def run_example(
     *,
     base_dir: str = "var/runs",
     db_path: str = "var/state/level_1_refinement.db",
+    model_name: str | None = None,
+    max_iterations: int | None = None,
 ) -> tuple[LoopRun, LoopState]:
     """Run the bounded document refinement example end-to-end."""
     Path(base_dir).mkdir(parents=True, exist_ok=True)
@@ -93,7 +102,11 @@ async def run_example(
             "Write a concise explanation of why deterministic verification is "
             "necessary in agentic loops."
         ),
-        budgets=BudgetConfig(max_iterations=5, max_model_calls=15, stagnation_threshold=3),
+        budgets=BudgetConfig(
+            max_iterations=max_iterations or 5,
+            max_model_calls=15,
+            stagnation_threshold=3,
+        ),
     )
     state = LoopState(
         facts={
@@ -104,24 +117,37 @@ async def run_example(
         }
     )
 
-    draft_agent = create_draft_agent()
-    critic_agent = create_critic_agent()
-    revision_agent = create_revision_agent()
+    draft_agent = create_draft_agent(model=model_name)
+    critic_agent = create_critic_agent(model=model_name)
+    revision_agent = create_revision_agent(model=model_name)
+    draft_runner = None
+    critic_runner = None
+    revision_runner = None
     if use_fake_model:
         setup_fake_responses()
         _attach_fake_callback(draft_agent, critic_agent, revision_agent)
+    else:
+        draft_runner = create_runner(draft_agent, app_name="level-1-draft")
+        critic_runner = create_runner(critic_agent, app_name="level-1-critic")
+        revision_runner = create_runner(revision_agent, app_name="level-1-revision")
 
-    draft_runner = create_runner(draft_agent, app_name="level-1-draft")
-    critic_runner = create_runner(critic_agent, app_name="level-1-critic")
-    revision_runner = create_runner(revision_agent, app_name="level-1-revision")
+    async def run_refinement_agent(
+        runner: Any | None,
+        session_id: str,
+        prompt: str,
+    ) -> str:
+        if use_fake_model:
+            return _get_fake_response(prompt)
+        if runner is None:
+            raise ValueError("Runner is required when fake mode is disabled.")
+        return await run_agent(runner, "user", session_id, prompt)
 
     async def agent_func(_: str, current_state: LoopState) -> str:
         if current_state.phase is Phase.PLAN:
             current_draft = str(current_state.facts.get("draft", ""))
             if not current_draft:
-                draft = await run_agent(
+                draft = await run_refinement_agent(
                     draft_runner,
-                    "user",
                     f"{run.run_id}-draft",
                     (
                         "Write a concise explanation (180-260 words) of why deterministic "
@@ -140,9 +166,8 @@ async def run_example(
                 current_state.facts.get("critique_feedback", "No critique available.")
             )
             revision_count = int(current_state.facts.get("revision_count", 0)) + 1
-            revised_draft = await run_agent(
+            revised_draft = await run_refinement_agent(
                 revision_runner,
-                "user",
                 f"{run.run_id}-revision",
                 (
                     "Revise this explanation based on the critique:\n\n"
@@ -180,9 +205,8 @@ async def run_example(
                 is_deterministic=False,
             )
 
-        raw_critique = await run_agent(
+        raw_critique = await run_refinement_agent(
             critic_runner,
-            "user",
             f"{run.run_id}-critic-{run.current_iteration}",
             (
                 "Evaluate this explanation and return a JSON object with score "

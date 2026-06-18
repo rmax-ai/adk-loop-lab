@@ -55,7 +55,7 @@ def setup_fake_responses() -> None:
     )
 
 
-def create_draft_agent() -> Agent:
+def create_draft_agent(*, model: str | None = None) -> Agent:
     """Create the draft-writing agent."""
     return create_agent(
         name="draft_agent",
@@ -65,11 +65,12 @@ def create_draft_agent() -> Agent:
             "concrete example. Distinguish generation from verification. Be precise "
             "and avoid unsupported claims."
         ),
+        model=model,
         output_key="draft",
     )
 
 
-def create_critic_agent() -> Agent:
+def create_critic_agent(*, model: str | None = None) -> Agent:
     """Create the critic agent that evaluates drafts."""
     return create_agent(
         name="critic_agent",
@@ -78,11 +79,12 @@ def create_critic_agent() -> Agent:
             "correctness, and completeness. Return a JSON object with score "
             "(0.0-1.0), pass (boolean), and feedback (string)."
         ),
+        model=model,
         output_key="critique",
     )
 
 
-def create_revision_agent() -> Agent:
+def create_revision_agent(*, model: str | None = None) -> Agent:
     """Create the revision agent that improves drafts."""
     return create_agent(
         name="revision_agent",
@@ -91,5 +93,6 @@ def create_revision_agent() -> Agent:
             "based on the critique provided. Keep it between 180 and 260 words, "
             "include a concrete example, and distinguish generation from verification."
         ),
+        model=model,
         output_key="draft",
     )

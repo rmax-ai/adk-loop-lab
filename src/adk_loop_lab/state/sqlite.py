@@ -1,8 +1,11 @@
 """SQLite-backed state persistence for loop runs."""
 
-from pathlib import Path
+from __future__ import annotations
 
-import aiosqlite
+import sqlite3
+from pathlib import Path
+from typing import Any
+
 import structlog
 
 from adk_loop_lab.models import LoopRun, LoopState
@@ -10,20 +13,62 @@ from adk_loop_lab.models import LoopRun, LoopState
 logger = structlog.get_logger(__name__)
 
 
+class _CursorAdapter:
+    """Async-shaped wrapper around a ``sqlite3`` cursor."""
+
+    def __init__(self, cursor: sqlite3.Cursor) -> None:
+        self._cursor = cursor
+
+    async def fetchone(self) -> tuple[Any, ...] | None:
+        return self._cursor.fetchone()  # type: ignore[no-any-return]
+
+    async def fetchall(self) -> list[tuple[Any, ...]]:
+        return self._cursor.fetchall()
+
+    async def close(self) -> None:
+        self._cursor.close()
+
+
+class _ConnectionAdapter:
+    """Async-shaped wrapper around a ``sqlite3`` connection."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    async def execute(
+        self,
+        sql: str,
+        parameters: tuple[Any, ...] = (),
+    ) -> _CursorAdapter:
+        cursor = self._connection.execute(sql, parameters)
+        return _CursorAdapter(cursor)
+
+    async def commit(self) -> None:
+        self._connection.commit()
+
+    async def rollback(self) -> None:
+        self._connection.rollback()
+
+    async def close(self) -> None:
+        self._connection.close()
+
+
 class SqliteStateStore:
     """SQLite-backed state store for loop runs."""
 
     def __init__(self, db_path: str = "var/state/loop_lab.db") -> None:
         self._db_path = db_path
-        self._connection: aiosqlite.Connection | None = None
+        self._connection: _ConnectionAdapter | None = None
 
     async def initialize(self) -> None:
         """Create tables if they don't exist."""
         if self._db_path != ":memory:":
             Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
 
-        self._connection = await aiosqlite.connect(self._db_path)
-        await self._connection.execute(
+        raw_connection = sqlite3.connect(self._db_path)
+        self._connection = _ConnectionAdapter(raw_connection)
+        connection = self._require_connection()
+        await connection.execute(
             """
             CREATE TABLE IF NOT EXISTS runs (
                 run_id TEXT PRIMARY KEY,
@@ -35,7 +80,7 @@ class SqliteStateStore:
             )
             """
         )
-        await self._connection.execute(
+        await connection.execute(
             """
             CREATE TABLE IF NOT EXISTS loop_states (
                 run_id TEXT PRIMARY KEY,
@@ -44,13 +89,13 @@ class SqliteStateStore:
             )
             """
         )
-        await self._connection.execute(
+        await connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_runs_example_id ON runs (example_id)"
         )
-        await self._connection.execute(
+        await connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_runs_status ON runs (status)"
         )
-        await self._connection.commit()
+        await connection.commit()
 
     async def save_run(self, run: LoopRun) -> None:
         """Insert or replace a run record."""
@@ -115,7 +160,7 @@ class SqliteStateStore:
         return LoopState.model_validate_json(row[0])
 
     async def list_runs(self, example_id: str | None = None, limit: int = 20) -> list[LoopRun]:
-        """List runs, optionally filtered by example_id."""
+        """List runs, optionally filtered by example ID."""
         connection = self._require_connection()
         if example_id is None:
             cursor = await connection.execute(
@@ -155,7 +200,7 @@ class SqliteStateStore:
         finally:
             self._connection = None
 
-    def _require_connection(self) -> aiosqlite.Connection:
+    def _require_connection(self) -> _ConnectionAdapter:
         if self._connection is None:
             raise RuntimeError("SqliteStateStore is not initialized")
         return self._connection

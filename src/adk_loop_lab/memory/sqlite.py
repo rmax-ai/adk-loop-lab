@@ -1,9 +1,12 @@
 """SQLite-backed memory store with FTS5 full-text search."""
 
+from __future__ import annotations
+
+import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
-import aiosqlite
 import structlog
 
 from adk_loop_lab.memory.base import MemoryStore
@@ -12,20 +15,59 @@ from adk_loop_lab.models.memory import MemoryRecord, MemoryScope, MemoryStatus
 logger = structlog.get_logger(__name__)
 
 
+class _CursorAdapter:
+    """Async-shaped wrapper around a ``sqlite3`` cursor."""
+
+    def __init__(self, cursor: sqlite3.Cursor) -> None:
+        self._cursor = cursor
+
+    async def fetchone(self) -> tuple[Any, ...] | None:
+        return self._cursor.fetchone()  # type: ignore[no-any-return]
+
+    async def fetchall(self) -> list[tuple[Any, ...]]:
+        return self._cursor.fetchall()
+
+    async def close(self) -> None:
+        self._cursor.close()
+
+
+class _ConnectionAdapter:
+    """Async-shaped wrapper around a ``sqlite3`` connection."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    async def execute(
+        self,
+        sql: str,
+        parameters: tuple[Any, ...] | list[str | int] = (),
+    ) -> _CursorAdapter:
+        cursor = self._connection.execute(sql, parameters)
+        return _CursorAdapter(cursor)
+
+    async def commit(self) -> None:
+        self._connection.commit()
+
+    async def close(self) -> None:
+        self._connection.close()
+
+
 class SqliteMemoryStore(MemoryStore):
     """SQLite-backed memory store with FTS5 search."""
 
     def __init__(self, db_path: str = "var/memory/loop_lab_memory.db") -> None:
         self._db_path = db_path
-        self._connection: aiosqlite.Connection | None = None
+        self._connection: _ConnectionAdapter | None = None
 
     async def initialize(self) -> None:
         """Create tables and FTS5 virtual table."""
         if self._db_path != ":memory:":
             Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
 
-        self._connection = await aiosqlite.connect(self._db_path)
-        await self._connection.execute(
+        raw_connection = sqlite3.connect(self._db_path)
+        self._connection = _ConnectionAdapter(raw_connection)
+        connection = self._require_connection()
+        await connection.execute(
             """
             CREATE TABLE IF NOT EXISTS memory_records (
                 memory_id TEXT PRIMARY KEY,
@@ -37,7 +79,7 @@ class SqliteMemoryStore(MemoryStore):
             )
             """
         )
-        await self._connection.execute(
+        await connection.execute(
             """
             CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
                 memory_id UNINDEXED,
@@ -45,16 +87,16 @@ class SqliteMemoryStore(MemoryStore):
             )
             """
         )
-        await self._connection.execute(
+        await connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_memory_records_scope ON memory_records (scope)"
         )
-        await self._connection.execute(
+        await connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_memory_records_kind ON memory_records (kind)"
         )
-        await self._connection.execute(
+        await connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_memory_records_status ON memory_records (status)"
         )
-        await self._connection.commit()
+        await connection.commit()
 
     async def add(self, record: MemoryRecord) -> str:
         """Insert a memory record."""
@@ -146,7 +188,7 @@ class SqliteMemoryStore(MemoryStore):
         return [MemoryRecord.model_validate_json(row[0]) for row in rows]
 
     async def promote(self, memory_id: str, evidence_refs: list[str]) -> bool:
-        """Promote CANDIDATE → VERIFIED."""
+        """Promote CANDIDATE to VERIFIED."""
         record = await self.get(memory_id)
         if record is None or record.status is not MemoryStatus.CANDIDATE:
             return False
@@ -181,7 +223,7 @@ class SqliteMemoryStore(MemoryStore):
         return True
 
     async def close(self) -> None:
-        """Close connection."""
+        """Close the connection."""
         if self._connection is None:
             return
 
@@ -193,7 +235,7 @@ class SqliteMemoryStore(MemoryStore):
         finally:
             self._connection = None
 
-    def _require_connection(self) -> aiosqlite.Connection:
+    def _require_connection(self) -> _ConnectionAdapter:
         if self._connection is None:
             raise RuntimeError("SqliteMemoryStore is not initialized")
         return self._connection

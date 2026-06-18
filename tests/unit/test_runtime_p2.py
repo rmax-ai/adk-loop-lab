@@ -169,9 +169,7 @@ class TestCheckpointManager:
         assert restored_state.phase == Phase.COMMIT
         assert restored_state.progress_score == 0.75
 
-    async def test_resume_run(
-        self, store: SqliteStateStore, run_in_store: LoopRun
-    ) -> None:
+    async def test_resume_run(self, store: SqliteStateStore, run_in_store: LoopRun) -> None:
         recorder = EventRecorder()
         cpm = CheckpointManager(store, recorder)
 
@@ -187,9 +185,7 @@ class TestCheckpointManager:
         resumed_run, _resumed_state = result
         assert resumed_run.status == RunStatus.RUNNING
 
-    async def test_nonexistent_checkpoint(
-        self, store: SqliteStateStore
-    ) -> None:
+    async def test_nonexistent_checkpoint(self, store: SqliteStateStore) -> None:
         recorder = EventRecorder()
         cpm = CheckpointManager(store, recorder)
         assert await cpm.get_latest_checkpoint("nonexistent") is None

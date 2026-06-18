@@ -355,6 +355,8 @@ async def run_example(
     *,
     base_dir: str = "var/runs",
     db_path: str = "var/state/level_3_coding_fleet.db",
+    model_name: str | None = None,
+    max_iterations: int | None = None,
 ) -> tuple[LoopRun, LoopState]:
     """Run the coding fleet example end-to-end."""
     Path(base_dir).mkdir(parents=True, exist_ok=True)
@@ -372,7 +374,11 @@ async def run_example(
     run = LoopRun(
         example_id="level_3_coding_fleet",
         goal="Add expiration/TTL support to KVStore while preserving backward compatibility.",
-        budgets=BudgetConfig(max_iterations=6, max_model_calls=30, stagnation_threshold=3),
+        budgets=BudgetConfig(
+            max_iterations=max_iterations or 6,
+            max_model_calls=30,
+            stagnation_threshold=3,
+        ),
     )
     state = LoopState(
         facts={
@@ -388,9 +394,9 @@ async def run_example(
     orchestrator = CodingOrchestrator(sandbox)
     shell = SandboxShell(sandbox)
 
-    observer = create_observer_agent()
-    planner = create_planner_agent()
-    implementer = create_implementer_agent()
+    observer = create_observer_agent(model=model_name)
+    planner = create_planner_agent(model=model_name)
+    implementer = create_implementer_agent(model=model_name)
     observer_runner = None
     planner_runner = None
     implementer_runner = None

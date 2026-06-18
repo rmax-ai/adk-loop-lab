@@ -39,6 +39,13 @@ def _attach_fake_callback(agent: Any, script: FakeModelScript) -> None:
     agent.before_model_callback = script.as_callback()
 
 
+def _get_fake_response(script: FakeModelScript, prompt: str) -> str:
+    for fragment, response in script._responses:
+        if fragment in prompt:
+            return response
+    raise ValueError(f"No fake response registered for prompt: {prompt}")
+
+
 def _build_context(documents: list[Document]) -> str:
     return "\n\n".join(
         f"[{document.doc_id}] {document.title}\n{document.content}" for document in documents
@@ -103,6 +110,8 @@ async def run_example(
     *,
     base_dir: str = "var/runs",
     db_path: str = "var/state/level_2_research.db",
+    model_name: str | None = None,
+    max_iterations: int | None = None,
 ) -> tuple[LoopRun, LoopState]:
     """Run the evidence-driven research example."""
     Path(base_dir).mkdir(parents=True, exist_ok=True)
@@ -116,7 +125,11 @@ async def run_example(
     run = LoopRun(
         example_id="level_2_research",
         goal=f"Produce an evidence-backed technical report on: {topic}",
-        budgets=BudgetConfig(max_iterations=4, max_model_calls=20, stagnation_threshold=4),
+        budgets=BudgetConfig(
+            max_iterations=max_iterations or 4,
+            max_model_calls=20,
+            stagnation_threshold=4,
+        ),
     )
 
     corpus_path = Path(__file__).parents[4] / "tests" / "fixtures" / "corpus"
@@ -145,11 +158,12 @@ async def run_example(
             "documents, extract relevant claims and cite your sources by document ID. "
             "Be precise and avoid unsupported claims."
         ),
+        model=model_name,
         output_key="research_notes",
     )
 
+    script = FakeModelScript()
     if use_fake_model:
-        script = FakeModelScript()
         script.add(
             "durable state persistence work",
             "Claim: SQLite-backed durable state makes persisted facts authoritative across restarts. Source: corpus summary [state_persistence]",
@@ -168,7 +182,16 @@ async def run_example(
         )
         _attach_fake_callback(research_agent, script)
 
-    research_runner = create_runner(research_agent, app_name="level-2-research")
+    research_runner = None
+    if not use_fake_model:
+        research_runner = create_runner(research_agent, app_name="level-2-research")
+
+    async def run_research_agent(prompt: str, session_id: str) -> str:
+        if use_fake_model:
+            return _get_fake_response(script, prompt)
+        if research_runner is None:
+            raise ValueError("Runner is required when fake mode is disabled.")
+        return await run_agent(research_runner, "user", session_id, prompt)
 
     async def agent_func(_: str, current_state: LoopState) -> str:
         if current_state.phase is not Phase.PLAN:
@@ -195,16 +218,15 @@ async def run_example(
         current_state.facts["current_question"] = question.text
         current_state.facts["current_sources"] = list(question.relevant_docs)
 
-        response = await run_agent(
-            research_runner,
-            "user",
+        prompt = (
+            f"Research question: {question.text}\n\n"
+            f"Source documents:\n{_build_context(relevant_documents)}\n\n"
+            "Extract claims with source citations in format:\n"
+            "Claim: <text> Source: <description> [doc_id]"
+        )
+        response = await run_research_agent(
+            prompt,
             f"{run.run_id}-{question.question_id}",
-            (
-                f"Research question: {question.text}\n\n"
-                f"Source documents:\n{_build_context(relevant_documents)}\n\n"
-                "Extract claims with source citations in format:\n"
-                "Claim: <text> Source: <description> [doc_id]"
-            ),
         )
 
         for claim_text, doc_ids in _parse_claims(response):

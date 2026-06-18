@@ -1,4 +1,5 @@
 """Tests for state store, event recorder, and console formatter."""
+
 import json
 from pathlib import Path
 
@@ -52,7 +53,9 @@ class TestSqliteStateStore:
         assert loaded.goal == run.goal
         assert loaded.example_id == run.example_id
 
-    async def test_save_and_load_state(self, store: SqliteStateStore, run: LoopRun, state: LoopState) -> None:
+    async def test_save_and_load_state(
+        self, store: SqliteStateStore, run: LoopRun, state: LoopState
+    ) -> None:
         await store.save_run(run)
         await store.save_state(run.run_id, state)
         loaded = await store.get_state(run.run_id)
@@ -108,7 +111,9 @@ class TestEventRecorder:
     def test_multiple_events(self, tmp_path: Path) -> None:
         recorder = EventRecorder(base_dir=str(tmp_path))
         for i in range(5):
-            recorder.record(LoopEvent(run_id="r1", iteration=i, event_type=EventType.ITERATION_STARTED))
+            recorder.record(
+                LoopEvent(run_id="r1", iteration=i, event_type=EventType.ITERATION_STARTED)
+            )
 
         events = recorder.get_events("r1")
         assert len(events) == 5
@@ -145,7 +150,9 @@ class TestConsoleFormatter:
         assert "VERIFY" in header
 
     def test_evaluation_line_pass(self) -> None:
-        result = EvaluationResult(evaluator_name="unit_tests", status=EvaluatorStatus.PASS, score=1.0)
+        result = EvaluationResult(
+            evaluator_name="unit_tests", status=EvaluatorStatus.PASS, score=1.0
+        )
         line = format_evaluation_line(result)
         assert "unit_tests" in line
 

@@ -92,9 +92,7 @@ class TestMemoryPromoter:
 
     async def test_try_promote_success(self, store: SqliteMemoryStore) -> None:
         promoter = MemoryPromoter(store, min_confidence=0.5)
-        cand = await promoter.add_candidate(
-            MemoryKind.LESSON, "test", "r1", 0, confidence=0.8
-        )
+        cand = await promoter.add_candidate(MemoryKind.LESSON, "test", "r1", 0, confidence=0.8)
         ok = await promoter.try_promote(cand, ["evidence-1"])
         assert ok
 
@@ -104,16 +102,12 @@ class TestMemoryPromoter:
 
     async def test_try_promote_no_evidence(self, store: SqliteMemoryStore) -> None:
         promoter = MemoryPromoter(store)
-        cand = await promoter.add_candidate(
-            MemoryKind.LESSON, "test", "r1", 0, confidence=0.8
-        )
+        cand = await promoter.add_candidate(MemoryKind.LESSON, "test", "r1", 0, confidence=0.8)
         ok = await promoter.try_promote(cand, [])  # No evidence
         assert not ok
 
     async def test_try_promote_low_confidence(self, store: SqliteMemoryStore) -> None:
         promoter = MemoryPromoter(store, min_confidence=0.7)
-        cand = await promoter.add_candidate(
-            MemoryKind.LESSON, "test", "r1", 0, confidence=0.3
-        )
+        cand = await promoter.add_candidate(MemoryKind.LESSON, "test", "r1", 0, confidence=0.3)
         ok = await promoter.try_promote(cand, ["evidence-1"])
         assert not ok

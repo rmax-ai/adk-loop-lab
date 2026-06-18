@@ -82,13 +82,17 @@ class TestDeterministicEvaluators:
 
 class TestCompositeEvaluator:
     def test_deterministic_veto(self) -> None:
-        fail = EvaluationResult(evaluator_name="e1", status=EvaluatorStatus.FAIL, is_deterministic=True)
+        fail = EvaluationResult(
+            evaluator_name="e1", status=EvaluatorStatus.FAIL, is_deterministic=True
+        )
         result = evaluate_composite([fail], CompositePolicy.DETERMINISTIC_VETO)
         assert result.overall_status == EvaluatorStatus.FAIL
         assert result.veto_triggered
 
     def test_non_deterministic_no_veto(self) -> None:
-        fail_nd = EvaluationResult(evaluator_name="e1", status=EvaluatorStatus.FAIL, is_deterministic=False)
+        fail_nd = EvaluationResult(
+            evaluator_name="e1", status=EvaluatorStatus.FAIL, is_deterministic=False
+        )
         result = evaluate_composite([fail_nd], CompositePolicy.DETERMINISTIC_VETO)
         assert result.overall_status == EvaluatorStatus.PASS
 

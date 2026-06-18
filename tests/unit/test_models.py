@@ -71,7 +71,9 @@ class TestActionProposal:
 
 class TestEvaluationResult:
     def test_pass(self) -> None:
-        result = EvaluationResult(evaluator_name="test_runner", status=EvaluatorStatus.PASS, score=1.0)
+        result = EvaluationResult(
+            evaluator_name="test_runner", status=EvaluatorStatus.PASS, score=1.0
+        )
         assert result.status == EvaluatorStatus.PASS
         assert result.score == 1.0
 

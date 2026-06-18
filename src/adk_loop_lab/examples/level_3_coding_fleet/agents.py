@@ -130,10 +130,11 @@ class KVStore:
     )
 
 
-def create_observer_agent() -> LlmAgent:
+def create_observer_agent(*, model: str | None = None) -> LlmAgent:
     """Create the repository observer agent."""
     return create_agent(
         name="observer",
+        model=model,
         instruction=(
             "You are a code repository observer. Inspect the given repository and "
             "report current file structure, existing tests, and issues relevant to "
@@ -142,10 +143,11 @@ def create_observer_agent() -> LlmAgent:
     )
 
 
-def create_planner_agent() -> LlmAgent:
+def create_planner_agent(*, model: str | None = None) -> LlmAgent:
     """Create the bounded-action planner agent."""
     return create_agent(
         name="planner",
+        model=model,
         instruction=(
             "You are a task planner. Given a coding task and repository state, "
             "propose exactly one bounded action. Return JSON with keys action, "
@@ -154,10 +156,11 @@ def create_planner_agent() -> LlmAgent:
     )
 
 
-def create_implementer_agent() -> LlmAgent:
+def create_implementer_agent(*, model: str | None = None) -> LlmAgent:
     """Create the implementation agent."""
     return create_agent(
         name="implementer",
+        model=model,
         instruction=(
             "You are a careful implementation agent. Given a specific task, "
             "produce the exact code changes needed. Show the full updated file in "
