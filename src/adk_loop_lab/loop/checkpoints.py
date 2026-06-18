@@ -1,8 +1,11 @@
 """Checkpoint persistence and resume helpers."""
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
 
 import structlog
+from pydantic import ValidationError
 
 from adk_loop_lab.events.recorder import EventRecorder
 from adk_loop_lab.models import EventType, LoopEvent, LoopRun, LoopState, RunStatus
@@ -100,26 +103,36 @@ class CheckpointManager:
         return checkpoint_id
 
     async def get_latest_checkpoint(self, run_id: str) -> tuple[LoopRun, LoopState] | None:
-        """Retrieve the latest checkpoint state for a run."""
+        """Retrieve the latest valid checkpoint state for a run."""
         connection = self._store._require_connection()
         await self._ensure_table()
 
         cursor = await connection.execute(
             """
-            SELECT run_data, state_data
+            SELECT checkpoint_id, run_data, state_data
             FROM checkpoints
             WHERE run_id = ?
             ORDER BY iteration DESC, created_at DESC
-            LIMIT 1
             """,
             (run_id,),
         )
-        row = await cursor.fetchone()
+        rows = await cursor.fetchall()
         await cursor.close()
-        if row is None:
-            return None
+        for row in rows:
+            checkpoint_id, run_data, state_data = row
+            try:
+                return (
+                    LoopRun.model_validate_json(run_data),
+                    LoopState.model_validate_json(state_data),
+                )
+            except ValidationError:
+                logger.warning(
+                    "corrupt_checkpoint_row",
+                    run_id=run_id,
+                    checkpoint_id=checkpoint_id,
+                )
 
-        return (LoopRun.model_validate_json(row[0]), LoopState.model_validate_json(row[1]))
+        return None
 
     async def resume_run(self, run_id: str) -> tuple[LoopRun, LoopState] | None:
         """Resume a run from its latest checkpoint."""

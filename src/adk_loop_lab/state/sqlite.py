@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from pydantic import ValidationError
 
 from adk_loop_lab.models import LoopRun, LoopState
 
@@ -92,9 +93,7 @@ class SqliteStateStore:
         await connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_runs_example_id ON runs (example_id)"
         )
-        await connection.execute(
-            "CREATE INDEX IF NOT EXISTS idx_runs_status ON runs (status)"
-        )
+        await connection.execute("CREATE INDEX IF NOT EXISTS idx_runs_status ON runs (status)")
         await connection.commit()
 
     async def save_run(self, run: LoopRun) -> None:
@@ -130,7 +129,11 @@ class SqliteStateStore:
         await cursor.close()
         if row is None:
             return None
-        return LoopRun.model_validate_json(row[0])
+        try:
+            return LoopRun.model_validate_json(row[0])
+        except ValidationError:
+            logger.warning("corrupt_run_row", run_id=run_id)
+            return None
 
     async def save_state(self, run_id: str, state: LoopState) -> None:
         """Save the current loop state for a run."""
@@ -157,7 +160,11 @@ class SqliteStateStore:
         await cursor.close()
         if row is None:
             return None
-        return LoopState.model_validate_json(row[0])
+        try:
+            return LoopState.model_validate_json(row[0])
+        except ValidationError:
+            logger.warning("corrupt_state_row", run_id=run_id)
+            return None
 
     async def list_runs(self, example_id: str | None = None, limit: int = 20) -> list[LoopRun]:
         """List runs, optionally filtered by example ID."""
@@ -185,7 +192,13 @@ class SqliteStateStore:
             )
         rows = await cursor.fetchall()
         await cursor.close()
-        return [LoopRun.model_validate_json(row[0]) for row in rows]
+        runs: list[LoopRun] = []
+        for row in rows:
+            try:
+                runs.append(LoopRun.model_validate_json(row[0]))
+            except ValidationError:
+                logger.warning("corrupt_run_row_in_list", example_id=example_id)
+        return runs
 
     async def close(self) -> None:
         """Close the database connection."""

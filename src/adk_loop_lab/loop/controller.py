@@ -413,7 +413,13 @@ class LoopController:
             stagnation_count=state.stagnation_count,
         )
 
-    async def resume(self, run_id: str) -> tuple[LoopRun, LoopState] | None:
+    async def resume(
+        self,
+        run_id: str,
+        *,
+        evaluators: list[EvaluatorFunc] | None = None,
+        tools: dict[str, ToolFunc] | None = None,
+    ) -> tuple[LoopRun, LoopState] | None:
         """Resume an interrupted run from its latest checkpoint."""
         resumed = await self._checkpoints.resume_run(run_id)
         if resumed is None:
@@ -424,8 +430,8 @@ class LoopController:
         return await self._run_loop(
             run,
             state,
-            evaluators=None,
-            tools=None,
+            evaluators=evaluators if evaluators is not None else self._evaluators,
+            tools=tools if tools is not None else self._tools,
             emit_run_started=False,
         )
 
