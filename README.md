@@ -6,6 +6,12 @@
 > execution, verification, explicit progress tracking, and deterministic
 > stopping conditions.
 
+## Status
+
+![Tests](https://github.com/rmax-ai/adk-loop-lab/actions/workflows/test.yml/badge.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+
 ## Quick Start
 
 ```bash
@@ -101,12 +107,14 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy src && uv run
 
 | Dependency | Version | Notes |
 |-----------|---------|-------|
-| Python | TBD | 3.11+ required |
-| google-adk | TBD | Pinned after API verification |
-| pydantic | TBD | |
-| pytest | TBD | |
-| ruff | TBD | |
-| mypy | TBD | |
+| Python | 3.13.5 | >=3.11 required |
+| google-adk | 2.2.0 | Uses Workflow graph API (v2) |
+| pydantic | 2.13.4 | v2 API with model_validate_json |
+| pytest | 9.0.2 | With pytest-asyncio |
+| ruff | 0.15.10 | Linting + formatting |
+| mypy | 2.1.0 | Strict mode |
+| structlog | 25.5.0 | Structured logging |
+| click | 8.3.1 | CLI framework |
 
 ## Documentation
 
