@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+
+# Environment
+.env
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project runtime
+var/runs/
+var/state/
+var/memory/
+var/artifacts/
+
+# Keep directory structure
+!var/runs/.gitkeep
+!var/state/.gitkeep
+!var/memory/.gitkeep
+!var/artifacts/.gitkeep
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# uv (lock file is committed — pinning is intentional)
