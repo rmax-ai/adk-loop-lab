@@ -1,0 +1,27 @@
+---
+title: Concepts
+description: Core ideas behind loop engineering, state, memory, verification, and failure handling.
+---
+
+# Concepts
+
+<p class="lead">The project docs organize around four concepts that show up in every example: how the loop is structured, what information it trusts, how it verifies progress, and how it fails safely.</p>
+
+<div class="card-grid">
+  <a class="doc-card" href="./loop-engineering/">
+    <h2>Loop Engineering</h2>
+    <p>The outer control system that reconstructs context, executes bounded work, and decides whether another iteration is justified.</p>
+  </a>
+  <a class="doc-card" href="./state-vs-memory/">
+    <h2>Context vs State vs Memory</h2>
+    <p>Three different lifetimes, trust models, and roles inside a multi-iteration system.</p>
+  </a>
+  <a class="doc-card" href="./verification/">
+    <h2>Verification &amp; Stopping</h2>
+    <p>Deterministic evaluators, composite policies, and stop conditions that do not depend on model confidence.</p>
+  </a>
+  <a class="doc-card" href="./failure-modes/">
+    <h2>Failure Modes</h2>
+    <p>Retries for transient problems, explicit termination for deterministic failures, and graceful handling of corruption.</p>
+  </a>
+</div>

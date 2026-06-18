@@ -1,0 +1,89 @@
+---
+title: Level 2 - Evidence-Driven Research
+description: Research loop with question tracking, claim-evidence matrices, and deterministic coverage checks.
+---
+
+<script>
+  import Mermaid from "$lib/components/Mermaid.svelte";
+
+  const flowChart = `
+flowchart TD
+  topic[Topic] --> questions[Question set]
+  questions --> q1[Open question]
+  questions --> q2[Open question]
+  questions --> q3[Open question]
+  q1 --> corpus[Corpus search]
+  q2 --> corpus
+  q3 --> corpus
+  corpus --> claims[Source-backed claims]
+  claims --> tracker[ResearchTracker]
+  tracker --> matrix[Claim-evidence matrix]
+  tracker --> coverage[Coverage evaluator]
+  coverage -->|all answered| report[Final report]
+  coverage -->|gaps remain| questions
+`;
+</script>
+
+# Level 2: Evidence-Driven Research
+
+<p class="lead">The research example upgrades the loop from "produce an answer" to "produce an evidence-backed answer." It carries questions, claims, sources, and gaps forward in state until coverage is strong enough to stop.</p>
+
+## Pattern
+
+- **Research questions first**: the topic is decomposed into explicit questions.
+- **Parallel by design**: the tracker can support fan-out across multiple questions even though the fake-model demo walks one open question per iteration.
+- **Claim-evidence matrix**: each claim stores source IDs and an evidence quality score.
+- **Gap-driven iteration**: unanswered questions and claims without sources keep the loop open.
+- **Citation verification**: the deterministic coverage evaluator fails when evidence gaps remain.
+
+## Flow
+
+<Mermaid chart={flowChart} />
+
+## Example configuration
+
+The real run setup keeps the budgets and topic explicit:
+
+```python
+run = LoopRun(
+    example_id="level_2_research",
+    goal="Produce an evidence-backed technical report on: <topic>",
+    budgets=BudgetConfig(
+        max_iterations=max_iterations or 4,
+        max_model_calls=20,
+        stagnation_threshold=4,
+    ),
+)
+```
+
+The tracker is the heart of the example:
+
+```python
+class ResearchTracker:
+    def __init__(self) -> None:
+        self.questions: list[ResearchQuestion] = []
+        self.claims: list[ResearchClaim] = []
+        self.searched_queries: set[str] = set()
+
+    def get_open_gaps(self) -> list[str]:
+        return [claim.text for claim in self.claims if not claim.source_doc_ids]
+```
+
+And the stop signal comes from deterministic coverage:
+
+```python
+passed = all_answered and has_claims and not gaps
+
+return EvaluationResult(
+    evaluator_name="coverage",
+    status=EvaluatorStatus.PASS if passed else EvaluatorStatus.FAIL,
+    score=score,
+    summary="questions_answered=<n>/<total> claims=<claims> open_gaps=<gaps>",
+)
+```
+
+## Why it matters
+
+This example makes a common agent failure mode visible: an answer can sound finished while the evidence model is still incomplete. By storing the live tracker in state and requiring source-backed claims, the loop has a concrete reason to continue or stop.
+
+Continue to [Level 3](../level-3/) for sandboxed coding work and resumable execution.

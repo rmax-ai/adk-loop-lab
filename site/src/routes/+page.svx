@@ -1,0 +1,80 @@
+---
+title: adk-loop-lab
+description: Agentic Loop Engineering Reference with Google ADK
+---
+
+<script>
+  import Mermaid from "$lib/components/Mermaid.svelte";
+
+  const lifecycleChart = `
+stateDiagram-v2
+    [*] --> DISCOVER
+    DISCOVER --> PLAN
+    PLAN --> EXECUTE
+    EXECUTE --> VERIFY
+    VERIFY --> COMMIT
+    COMMIT --> REFLECT
+    REFLECT --> DECIDE
+    DECIDE --> PLAN : CONTINUE
+    DECIDE --> [*] : SUCCESS
+    DECIDE --> [*] : FAILED
+    DECIDE --> [*] : BUDGET_EXHAUSTED
+    DECIDE --> [*] : STAGNATED
+`;
+</script>
+
+<div class="eyebrow">Reference implementation</div>
+
+# adk-loop-lab
+
+<p class="lead"><strong>A documentation site for building bounded, inspectable agent loops with Google ADK.</strong></p>
+
+> A useful agentic loop combines durable state, selective memory, bounded execution, verification, explicit progress tracking, and deterministic stopping conditions.
+
+<div class="cta-row">
+  <a class="button-link" href="./examples/">Explore the examples</a>
+  <a class="button-link secondary" href="./architecture/">Read the architecture</a>
+</div>
+
+## The Loop Lifecycle
+
+<Mermaid chart={lifecycleChart} />
+
+The project does not treat the model call as the system. The model is one step inside a loop controller that reconstructs context, executes bounded work, verifies results, records evidence, and then decides whether another iteration is justified.
+
+## Three Planes
+
+- **Control plane**: deterministic lifecycle ordering, checkpoints, stopping policy, and budget enforcement.
+- **Execution plane**: ADK agents, Gemini calls, workflow composition, and sandboxed tools.
+- **Data plane**: SQLite-backed state and memory, plus JSONL event traces for auditability.
+
+## Three Examples
+
+<div class="card-grid">
+  <a class="doc-card" href="./examples/level-1/">
+    <span class="level-pill">Level 1</span>
+    <h2>Bounded Document Refinement</h2>
+    <p>A generator-critic loop with hard checks for word count, examples, and unsupported citation phrasing.</p>
+  </a>
+  <a class="doc-card" href="./examples/level-2/">
+    <span class="level-pill level-2">Level 2</span>
+    <h2>Evidence-Driven Research</h2>
+    <p>A research tracker that turns questions, claims, and source IDs into a claim-evidence matrix and a final report.</p>
+  </a>
+  <a class="doc-card" href="./examples/level-3/">
+    <span class="level-pill level-3">Level 3</span>
+    <h2>Resumable Coding Loop</h2>
+    <p>A coding workflow with observer, planner, implementer, sandboxed execution, and failure-memory guards.</p>
+  </a>
+</div>
+
+## Quick Start
+
+```bash
+git clone https://github.com/rmax-ai/adk-loop-lab.git
+cd adk-loop-lab
+uv sync
+uv run adk-loop run level-1
+```
+
+For a deeper read, continue with the [architecture page](./architecture/), the [concepts guide](./concepts/), or the [examples index](./examples/).

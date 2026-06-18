@@ -1,0 +1,34 @@
+---
+title: Failure Modes
+description: Common failure classes in adk-loop-lab and how the controller handles them.
+---
+
+# Failure Modes
+
+<p class="lead">Agent loops fail in repeatable ways. The project design tries to make those failures visible, bounded, and recoverable when recovery is justified.</p>
+
+## Transient model and persistence errors
+
+The recovery policy retries only selected transient classes such as model timeouts, malformed structured output, and persistence failures. Retries are bounded and use backoff. Deterministic failures do not get the same treatment, because repeating the identical move without changing anything is just churn.
+
+## Tool failures
+
+Sandboxed tools can fail because of timeouts, disallowed commands, or sandbox escape attempts. Those cases are surfaced directly so the controller can block, fail, or escalate rather than silently losing control of the environment.
+
+## State corruption
+
+Invalid persisted JSON is treated as corruption, not as trusted data. Corrupt rows degrade to `None`, and corrupt latest checkpoints are skipped in favor of older valid checkpoints. That behavior is intentionally conservative: if persistence is damaged, the system should prefer a known-good snapshot over optimistic reconstruction.
+
+## Budget exhaustion
+
+Iteration count, model calls, tool calls, and duration are all tracked explicitly. When a limit is hit, the terminal decision becomes `BUDGET_EXHAUSTED`. That is not a stylistic label from the model. It is a controller-level stop reason.
+
+## Stagnation
+
+The loop tracks whether progress is improving. If the score fails to improve for enough consecutive iterations, stagnation increments until the configured threshold is reached and the run stops with `STAGNATED`.
+
+## Hallucinated structure
+
+Pydantic validation sits on the boundary for state, memory, and evaluation payloads. Malformed structured output becomes a visible runtime problem instead of silently poisoning later iterations.
+
+That pattern shows up across the repo: surface errors, classify them, retry only when the failure class justifies it, and keep the stop reason observable.

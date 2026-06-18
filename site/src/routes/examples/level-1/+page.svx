@@ -1,0 +1,74 @@
+---
+title: Level 1 - Bounded Document Refinement
+description: Generator-critic loop with deterministic verification and bounded iteration.
+---
+
+<script>
+  import Mermaid from "$lib/components/Mermaid.svelte";
+
+  const flowChart = `
+flowchart LR
+  draft[Draft agent] --> critic[Critic agent]
+  critic --> revise[Revision agent]
+  revise --> checks[Deterministic checks]
+  checks -->|pass| decide[Deterministic decide]
+  checks -->|fail| revise
+  critic -->|score < 0.70| revise
+`;
+</script>
+
+# Level 1: Bounded Document Refinement
+
+<p class="lead">This example is the smallest complete loop in the repository: generate a draft, critique it, revise it, and stop as soon as the work passes both deterministic checks and the critic threshold.</p>
+
+## What the loop enforces
+
+- **Generator-critic pattern**: separate drafting, critique, and revision agents.
+- **Word count bounds**: each draft must land between **180 and 260 words**.
+- **Style checks**: the draft must include a concrete example, distinguish generation from verification, and avoid unsupported citation phrases.
+- **Bounded iteration**: the controller defaults to **five iterations**, **fifteen model calls**, and a **stagnation threshold of three**.
+
+## Flow
+
+<Mermaid chart={flowChart} />
+
+The model does not get to declare success on its own. The critic score matters, but deterministic validators still veto completion if the draft is too long, lacks a concrete example, or drifts into unsupported "according to..." style claims.
+
+## Example configuration
+
+This is the real run configuration from `src/adk_loop_lab/examples/level_1_refinement/example.py`:
+
+```python
+run = LoopRun(
+    example_id="level_1_refinement",
+    goal=(
+        "Write a concise explanation of why deterministic verification is "
+        "necessary in agentic loops."
+    ),
+    budgets=BudgetConfig(
+        max_iterations=max_iterations or 5,
+        max_model_calls=15,
+        stagnation_threshold=3,
+    ),
+)
+```
+
+The deterministic checks are equally direct:
+
+```python
+results.append(range_validator(word_count, 180, 260, "word_count"))
+
+results.append(
+    not_contains_validator(
+        normalized,
+        ["according to", "studies show", "research indicates", "experts agree"],
+        "unsupported_citations",
+    )
+)
+```
+
+## Why it matters
+
+This example is intentionally narrow. It shows that even a small loop benefits from explicit state, bounded retries, and a verification phase that can reject superficially good language when it misses concrete constraints.
+
+Continue to [Level 2](../level-2/) for evidence tracking and gap-driven iteration.

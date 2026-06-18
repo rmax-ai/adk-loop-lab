@@ -1,0 +1,142 @@
+---
+title: Architecture
+description: Overview of the adk-loop-lab control plane, execution plane, data plane, and lifecycle policies.
+---
+
+<script>
+  import Mermaid from "$lib/components/Mermaid.svelte";
+
+  const lifecycleChart = `
+flowchart LR
+    DISCOVER --> PLAN --> EXECUTE --> VERIFY --> COMMIT --> REFLECT --> DECIDE
+    DECIDE -->|CONTINUE| DISCOVER
+    DECIDE -->|SUCCESS| END1([Stop])
+    DECIDE -->|FAILED| END2([Stop])
+    DECIDE -->|BUDGET_EXHAUSTED| END3([Stop])
+    DECIDE -->|STAGNATED| END4([Stop])
+`;
+
+  const planesChart = `
+flowchart TB
+  subgraph Control[Control Plane]
+    controller[Loop controller]
+    policies[Budget + stopping policies]
+    checkpoints[Checkpoint manager]
+  end
+
+  subgraph Execution[Execution Plane]
+    adk[ADK agents]
+    runner[Runner adapter]
+    tools[Sandboxed tools]
+    context[Context builder]
+  end
+
+  subgraph Data[Data Plane]
+    state[(SQLite state)]
+    memory[(SQLite memory)]
+    events[(JSONL events)]
+  end
+
+  controller --> adk
+  controller --> tools
+  controller --> state
+  controller --> events
+  context --> adk
+  memory --> context
+  checkpoints --> state
+`;
+
+  const moduleChart = `
+flowchart TD
+  models[models/]
+  loop[loop/]
+  adk[adk/]
+  context[context/]
+  state[state/]
+  memory[memory/]
+  events[events/]
+  evaluation[evaluation/]
+  tools[tools/]
+  examples[examples/]
+
+  models --> loop
+  models --> state
+  models --> memory
+  loop --> context
+  loop --> evaluation
+  loop --> events
+  loop --> state
+  context --> memory
+  adk --> examples
+  tools --> examples
+  evaluation --> examples
+  state --> examples
+`;
+</script>
+
+# Architecture
+
+<p class="lead">`adk-loop-lab` is built around a deterministic controller, not a free-running chat loop. The controller owns lifecycle order, budgets, checkpoints, and stop decisions, while ADK agents stay isolated behind adapters.</p>
+
+## Seven-Phase Lifecycle
+
+<Mermaid chart={lifecycleChart} />
+
+The lifecycle mirrors the controller contract described in `docs/architecture/overview.md`: observe the current world, rebuild context, execute a bounded move, verify it, persist what was proven, and only then evaluate whether continuing is justified.
+
+## Three-Plane Separation
+
+<Mermaid chart={planesChart} />
+
+- **Control plane**: deterministic Python in `loop/` handles phase ordering, budgets, and checkpointing.
+- **Execution plane**: `adk/`, `context/`, and `tools/` translate a bounded action into model and tool work.
+- **Data plane**: `state/`, `memory/`, and `events/` preserve authoritative facts, verified lessons, and traces.
+
+## Module Map
+
+<Mermaid chart={moduleChart} />
+
+The package split is intentionally plain:
+
+- `loop/` owns the lifecycle, policies, recovery, and checkpoints.
+- `adk/` absorbs ADK version churn through agents, runner helpers, workflow helpers, and a compatibility layer.
+- `context/` reconstructs per-iteration prompts from goal, constraints, state, memory, failures, and budget status.
+- `memory/`, `state/`, and `events/` keep long-lived records inspectable and local-first.
+- `evaluation/` runs deterministic validators before any model judge can influence the score.
+
+## Deterministic Shell Principle
+
+<div class="callout">
+  <strong>Models propose; deterministic code decides.</strong> `PLAN` and `REFLECT` may use model output. `DECIDE` does not. Tool approval, lifecycle transitions, budget checks, and terminal outcomes belong to deterministic code paths.
+</div>
+
+That principle gives the repo its core trust boundaries:
+
+- current facts come from state, not prompt memory
+- verified lessons require evidence before promotion
+- irreversible operations can be separated from routine reads and reversible writes
+- traces can be redacted without losing lifecycle visibility
+
+## Budget Enforcement
+
+The controller checks budgets before each action instead of treating exhaustion as a model judgment.
+
+| Budget | Why it exists | Terminal outcome |
+| --- | --- | --- |
+| Iterations | Prevent unbounded looping | `BUDGET_EXHAUSTED` |
+| Model calls | Keep agent spend explicit | `BUDGET_EXHAUSTED` |
+| Tool calls | Bound side effects and churn | `BUDGET_EXHAUSTED` |
+| Elapsed duration | Avoid stale or hanging runs | `BUDGET_EXHAUSTED` |
+| Stagnation threshold | Stop repeated non-progress | `STAGNATED` |
+
+The default stopping order is equally explicit: fatal error, success, budget exhaustion, stagnation, duration exhaustion, otherwise continue.
+
+## Key Design Decisions
+
+The architecture pages and ADRs line up around three durable choices:
+
+1. **Google ADK is the execution surface.** ADR 001 keeps agent construction and workflow composition in `adk/` so the controller stays ADK-agnostic.
+2. **SQLite FTS5 is the default memory backend.** ADR 002 favors local inspectability and evidence-gated promotion over a mandatory vector store.
+3. **Async-shaped `sqlite3` adapters replace `aiosqlite`.** ADR 003 preserves the async call shape without adding runtime fragility in local and sandboxed environments.
+
+From there, the architecture stays conservative: keep the shell deterministic, keep state authoritative, keep verification in front of promotion, and keep every loop bounded.

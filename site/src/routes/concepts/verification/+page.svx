@@ -1,0 +1,61 @@
+---
+title: Verification and Stopping
+description: Deterministic evaluators, composite policies, and explicit loop stop rules.
+---
+
+# Verification and Stopping
+
+<p class="lead">Reliable loops need two separate decisions: whether the latest work is acceptable, and whether the loop should continue at all. `adk-loop-lab` keeps both decisions explicit and deterministic by default.</p>
+
+## Deterministic evaluators
+
+The reusable deterministic evaluators cover the kinds of checks that should never depend on model confidence:
+
+- schema validation
+- exact matches
+- numeric ranges such as word count
+- required items
+- forbidden patterns
+
+Example 1 uses this directly for word count, concrete-example detection, generation-versus-verification checks, and unsupported citation phrasing.
+
+## Model-based evaluators
+
+Not every quality dimension is reducible to a rule. The project still supports model judges for clarity, coherence, and qualitative feedback, but they participate through the same `EvaluationResult` contract and cannot override failing deterministic checks under the default policy.
+
+## Composite policies
+
+The evaluation layer supports several policies:
+
+- `DETERMINISTIC_VETO`
+- `ALL_REQUIRED`
+- `WEIGHTED_SCORE`
+- `QUORUM`
+
+The default matters most: **deterministic veto** means a failing hard check blocks success even if the model judge likes the result.
+
+## Stopping conditions
+
+The controller can terminate with outcomes such as:
+
+- `SUCCESS`
+- `FAILED`
+- `BLOCKED`
+- `BUDGET_EXHAUSTED`
+- `STAGNATED`
+- `CONTINUE`
+
+The decision order stays straightforward:
+
+1. stop on fatal error
+2. succeed if all criteria are met
+3. stop on budget exhaustion
+4. stop on stagnation
+5. stop on duration exhaustion
+6. otherwise continue
+
+## How verification feeds stopping
+
+Verification updates progress score, evaluation history, and stagnation tracking. Stopping then reads those deterministic signals plus the current budget state. That split is important: evaluators judge the last action; the stopping policy judges the run as a whole.
+
+Next: [Failure Modes](../failure-modes/).

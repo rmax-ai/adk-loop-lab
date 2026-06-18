@@ -1,0 +1,50 @@
+---
+title: Examples
+description: Overview of the three reference loops in adk-loop-lab.
+---
+
+# Examples
+
+<p class="lead">The repository ships three examples that step from a small refinement loop to a resumable coding workflow. Each one adds another piece of loop engineering: stronger verification, richer state, and stricter operational controls.</p>
+
+<div class="card-grid">
+  <a class="doc-card" href="./level-1/">
+    <span class="level-pill">Level 1</span>
+    <h2>Bounded Document Refinement</h2>
+    <p>Generator, critic, deterministic draft checks, and a hard max of five iterations.</p>
+  </a>
+  <a class="doc-card" href="./level-2/">
+    <span class="level-pill level-2">Level 2</span>
+    <h2>Evidence-Driven Research</h2>
+    <p>Research questions, source-backed claims, gap tracking, and a final report assembled from a local corpus.</p>
+  </a>
+  <a class="doc-card" href="./level-3/">
+    <span class="level-pill level-3">Level 3</span>
+    <h2>Resumable Coding Loop</h2>
+    <p>Observer, planner, implementer, sandbox verification, repeated-failure memory, and restart tolerance.</p>
+  </a>
+</div>
+
+## Level 1: Try it
+
+```bash
+uv run adk-loop run level-1
+```
+
+The smallest example shows the shape of the controller clearly: draft, critique, revise, verify, and stop once deterministic and qualitative checks both agree.
+
+## Level 2: Try it
+
+```bash
+uv run adk-loop run level-2
+```
+
+This example trades free-form summarization for evidence discipline. Questions become claims, claims carry source IDs, and the final report includes a claim-evidence matrix.
+
+## Level 3: Try it
+
+```bash
+uv run adk-loop run level-3
+```
+
+The coding example runs against a fixture repository inside a sandbox. It proves that the same lifecycle can govern tool execution, test evaluation, failure memory, and run resumption.

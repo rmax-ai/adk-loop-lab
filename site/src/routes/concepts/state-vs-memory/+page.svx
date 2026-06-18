@@ -1,0 +1,49 @@
+---
+title: Context vs State vs Memory
+description: Why adk-loop-lab separates per-iteration context from authoritative state and verified memory.
+---
+
+# Context vs State vs Memory
+
+<p class="lead">Agent systems often blur prompt context, current state, and long-lived memory into one fuzzy bucket. `adk-loop-lab` keeps them separate because they have different lifetimes and different trust models.</p>
+
+## Context
+
+Context is what the model sees in the current iteration. It is rebuilt each time by the context builder from:
+
+- goal and acceptance criteria
+- constraints and current phase
+- authoritative facts from state
+- selected verified memories
+- recent failures
+- budget status
+
+Context is deliberately temporary. It is a bounded working set, not a durable source of truth.
+
+## State
+
+State is the authoritative record of the current run. It survives restarts and is read before every iteration. In practice it stores the facts that the control plane depends on: completed and pending actions, evaluation history, progress score, failures, and example-specific working data.
+
+When the controller needs to know what is true right now, it reads state rather than relying on model summaries or old prompt windows.
+
+## Memory
+
+Memory is long-lived knowledge promoted from verified outcomes. It is useful for lessons learned, failed approaches, and patterns worth carrying across runs, but it is never treated as more authoritative than the current state snapshot.
+
+The default memory backend is SQLite FTS5, and promotion is evidence-gated. New records do not become durable lessons just because a model said they sounded important.
+
+## Anti-patterns
+
+### Treating context as state
+
+If the model saw a fact in a previous prompt, that does not mean the system should trust that fact now. The loop rebuilds from state precisely so current decisions do not depend on stale prompt history.
+
+### Treating memory as current truth
+
+Memory can be stale or superseded. If the current run can read a fact from `LoopState`, it should. Memory is for reusable lessons, not for reconstructing the live world from scraps.
+
+### Stuffing everything into facts
+
+`LoopState.facts` is flexible, but it is still state. The context builder exists so prompts stay selective instead of turning state into an unbounded transcript dump.
+
+Next: [Verification & Stopping](../verification/).

@@ -1,0 +1,54 @@
+---
+title: Loop Engineering
+description: The deterministic outer system that keeps an LLM useful across multiple iterations.
+---
+
+# Loop Engineering
+
+<p class="lead">Loop engineering is the design of the outer control system around model calls. In `adk-loop-lab`, that means reconstructing context, enforcing budgets, verifying work, persisting state, and deciding whether the next iteration is warranted.</p>
+
+## Loop vs single call
+
+A single model call produces one answer. A loop does more:
+
+- read durable state before acting
+- rebuild the prompt from current facts
+- execute bounded work
+- verify the outcome
+- persist state and checkpoints
+- decide deterministically whether to continue
+
+That split is concrete in the repo: ADK execution lives in `adk/`, while control logic stays in `loop/controller.py` and the policy modules around it.
+
+## Seven phases
+
+The loop walks the same ordered phases each iteration:
+
+1. `DISCOVER`
+2. `PLAN`
+3. `EXECUTE`
+4. `VERIFY`
+5. `COMMIT`
+6. `REFLECT`
+7. `DECIDE`
+
+The important design choice is not the exact names. It is that the order is fixed, inspectable, and owned by deterministic code rather than by prompt flow.
+
+## Deterministic shell, probabilistic core
+
+The repository follows a simple rule: models propose; deterministic code decides.
+
+- the probabilistic core lives in agent construction, workflow helpers, and runner calls
+- the deterministic shell owns lifecycle ordering, retries, state commits, and stop decisions
+
+This keeps the system debuggable. If a run stops, repeats, or escalates, the reason is encoded in the controller and the trace instead of buried in model phrasing.
+
+## Bounded iteration
+
+Every example carries explicit budgets through `BudgetConfig`. Iterations, model calls, tool calls, duration, and stagnation all have hard limits. The controller checks those limits before the next step instead of waiting for the model to notice that a run has gone off course.
+
+## Checkpoint and resume
+
+The project checkpoints after committed work so interrupted runs can resume from the latest valid state. That matters for long-running or tool-heavy loops: the system should not depend on a single uninterrupted process or on the model remembering everything it already tried.
+
+Next: [Context vs State vs Memory](../state-vs-memory/).

@@ -1,0 +1,81 @@
+---
+title: Level 3 - Resumable Coding Loop
+description: Multi-agent coding workflow with sandboxed tools, deterministic evaluators, and failure memory.
+---
+
+<script>
+  import Mermaid from "$lib/components/Mermaid.svelte";
+
+  const architectureChart = `
+flowchart LR
+  observer[Observer agent] --> planner[Planner agent]
+  planner --> orchestrator[CodingOrchestrator]
+  orchestrator --> implementer[Implementer agent]
+  implementer --> sandbox[Sandbox repo]
+  sandbox --> tests[Deterministic tests]
+  sandbox --> reqs[Requirement evaluator]
+  tests --> controller[Loop controller]
+  reqs --> controller
+  controller --> memory[Failure memory]
+  memory --> planner
+`;
+</script>
+
+# Level 3: Resumable Coding Loop
+
+<p class="lead">The most operationally demanding example in the repo applies the same loop lifecycle to code changes inside a sandboxed fixture repository.</p>
+
+## Pattern
+
+- **Multi-agent fleet**: observer, planner, and implementer agents divide inspection, action selection, and code generation.
+- **Sandboxed tools**: file reads, writes, and shell execution stay confined to a copied fixture repository.
+- **Parallel evaluators**: tests, requirements checks, and failure-memory guards all contribute to the verification decision.
+- **Failure memory**: repeated approaches are recorded and blocked before the loop wastes more iterations.
+- **Resume support**: the loop persists enough state to continue after interruption.
+
+## Architecture
+
+<Mermaid chart={architectureChart} />
+
+## Example configuration
+
+The coding run gives itself more room, but it is still bounded:
+
+```python
+run = LoopRun(
+    example_id="level_3_coding_fleet",
+    goal="Add expiration/TTL support to KVStore while preserving backward compatibility.",
+    budgets=BudgetConfig(
+        max_iterations=max_iterations or 6,
+        max_model_calls=30,
+        stagnation_threshold=3,
+    ),
+)
+```
+
+The orchestrator records failed approaches and blocks repeats after three tries:
+
+```python
+def record_failure(self, approach_hash: str, error: str, iteration: int) -> None:
+    for record in self.failure_history:
+        if record.approach_hash != approach_hash:
+            continue
+        record.retry_count += 1
+        if record.retry_count >= 3:
+            record.blocked = True
+        return
+```
+
+Verification mixes repository tests with domain checks:
+
+```python
+def evaluate_requirements(state: LoopState) -> EvaluationResult:
+    kvstore = orchestrator.fs.read("kvstore.py") if orchestrator.fs.exists("kvstore.py") else ""
+    has_ttl = "ttl_seconds" in kvstore and "_is_expired" in kvstore and "time.time()" in kvstore
+```
+
+## Why it matters
+
+This example demonstrates that loop engineering is not just for text generation. The same controller can manage tool execution, requirement verification, repeated-failure avoidance, and resumable progress without handing control of the workflow to the model.
+
+If you want the design principles behind these examples, move to the [concepts section](../../concepts/).
