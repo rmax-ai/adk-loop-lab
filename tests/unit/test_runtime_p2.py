@@ -1,7 +1,5 @@
 """Tests for transactions, checkpoints, and budget/stopping policies."""
 
-import asyncio
-
 import pytest
 
 from adk_loop_lab.events.recorder import EventRecorder
@@ -167,7 +165,7 @@ class TestCheckpointManager:
 
         restored = await cpm.get_latest_checkpoint(run_in_store.run_id)
         assert restored is not None
-        restored_run, restored_state = restored
+        _restored_run, restored_state = restored
         assert restored_state.phase == Phase.COMMIT
         assert restored_state.progress_score == 0.75
 
@@ -186,7 +184,7 @@ class TestCheckpointManager:
 
         result = await cpm.resume_run(run_in_store.run_id)
         assert result is not None
-        resumed_run, resumed_state = result
+        resumed_run, _resumed_state = result
         assert resumed_run.status == RunStatus.RUNNING
 
     async def test_nonexistent_checkpoint(

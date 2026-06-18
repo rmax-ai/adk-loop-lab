@@ -1,8 +1,5 @@
 """Tests for domain models — verify Pydantic schemas and defaults."""
 
-import pytest
-from pydantic import ValidationError
-
 from adk_loop_lab.models import (
     AcceptanceCriterion,
     ActionProposal,
@@ -10,9 +7,9 @@ from adk_loop_lab.models import (
     BudgetConfig,
     BudgetState,
     Decision,
-    EventType,
     EvaluationResult,
     EvaluatorStatus,
+    EventType,
     LoopEvent,
     LoopRun,
     LoopState,
@@ -41,9 +38,7 @@ class TestLoopRun:
     def test_acceptance_criteria(self) -> None:
         ac = AcceptanceCriterion(key="word_count", description="Must be 180-260 words")
         assert ac.met is False
-        run = LoopRun(
-            example_id="x", goal="y", acceptance_criteria=[ac]
-        )
+        run = LoopRun(example_id="x", goal="y", acceptance_criteria=[ac])
         assert len(run.acceptance_criteria) == 1
 
 

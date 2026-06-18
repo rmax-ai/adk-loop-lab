@@ -1,6 +1,4 @@
 """Tests for state store, event recorder, and console formatter."""
-
-import asyncio
 import json
 from pathlib import Path
 

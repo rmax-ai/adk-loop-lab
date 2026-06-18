@@ -3,12 +3,11 @@
 from pathlib import Path
 
 from adk_loop_lab.examples.level_1_refinement.checks import (
-    all_checks_pass,
     check_draft,
     count_words,
 )
 from adk_loop_lab.examples.level_1_refinement.example import run_example
-from adk_loop_lab.models import Decision, EvaluatorStatus
+from adk_loop_lab.models import EvaluatorStatus
 
 
 def test_check_draft_flags_short_text() -> None:

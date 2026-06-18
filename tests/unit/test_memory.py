@@ -2,8 +2,8 @@
 
 import pytest
 
-from adk_loop_lab.memory.sqlite import SqliteMemoryStore
 from adk_loop_lab.memory.promotion import MemoryPromoter
+from adk_loop_lab.memory.sqlite import SqliteMemoryStore
 from adk_loop_lab.models.memory import MemoryKind, MemoryRecord, MemoryStatus
 
 

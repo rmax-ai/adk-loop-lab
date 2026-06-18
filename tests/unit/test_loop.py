@@ -1,7 +1,5 @@
 """Tests for loop controller, lifecycle, and recovery."""
 
-import asyncio
-
 import pytest
 
 from adk_loop_lab.events.recorder import EventRecorder
@@ -24,7 +22,6 @@ from adk_loop_lab.models import (
     RunStatus,
 )
 from adk_loop_lab.state.sqlite import SqliteStateStore
-
 
 # ── Lifecycle ────────────────────────────────────────────────────────
 
@@ -125,7 +122,7 @@ class TestLoopController:
         )
         state = LoopState()
 
-        final_run, final_state = await controller.run(run, state)
+        final_run, _final_state = await controller.run(run, state)
         assert final_run.current_iteration >= 1
         assert final_run.last_decision is not None
 
@@ -167,7 +164,7 @@ class TestLoopController:
         )
         state = LoopState(progress_score=0.0)
 
-        final_run, final_state = await controller.run(run, state)
+        _final_run, final_state = await controller.run(run, state)
         # In offline mode, progress stays at 0, stagnation_count will grow
         assert final_state.stagnation_count >= 2
 
@@ -191,6 +188,6 @@ class TestLoopController:
         # Resume — controller will load checkpoint and re-run
         result = await controller.resume(run.run_id)
         assert result is not None
-        resumed_run, resumed_state = result
+        resumed_run, _resumed_state = result
         # After resume + re-run, the run has a terminal status
         assert resumed_run.last_decision is not None
