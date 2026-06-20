@@ -21,7 +21,7 @@ Example 1 uses this directly for word count, concrete-example detection, generat
 
 ## Model-based evaluators
 
-Not every quality dimension is reducible to a rule. The project still supports model judges for clarity, coherence, and qualitative feedback, but they participate through the same `EvaluationResult` contract and cannot override failing deterministic checks under the default policy.
+Not every quality dimension is reducible to a rule. The project still supports model judges for clarity, coherence, and qualitative feedback, and they participate through the same `EvaluationResult` contract. The reusable composite evaluator supports deterministic veto behavior, while the generic controller currently applies a simpler all-pass rule directly.
 
 ## Composite policies
 
@@ -32,11 +32,11 @@ The evaluation layer supports several policies:
 - `WEIGHTED_SCORE`
 - `QUORUM`
 
-The default matters most: **deterministic veto** means a failing hard check blocks success even if the model judge likes the result.
+The default helper policy matters most: **deterministic veto** means a failing hard check blocks success even if the model judge likes the result. In the current generic controller, richer composite policies exist but are not yet the default execution path.
 
 ## Stopping conditions
 
-The controller can terminate with outcomes such as:
+The controller can emit decision outcomes such as:
 
 - `SUCCESS`
 - `FAILED`
@@ -45,7 +45,7 @@ The controller can terminate with outcomes such as:
 - `STAGNATED`
 - `CONTINUE`
 
-The decision order stays straightforward:
+The stopping-policy decision order stays straightforward:
 
 1. stop on fatal error
 2. succeed if all criteria are met

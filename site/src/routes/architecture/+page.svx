@@ -76,13 +76,13 @@ flowchart TD
 
 # Architecture
 
-<p class="lead">`adk-loop-lab` is built around a deterministic controller, not a free-running chat loop. The controller owns lifecycle order, budgets, checkpoints, and stop decisions, while ADK agents stay isolated behind adapters.</p>
+<p class="lead">`adk-loop-lab` is built around a deterministic controller, not a free-running chat loop. The controller owns lifecycle order, checkpoints, and stop decisions, while adjacent modules for context, evaluation, memory, and tool governance provide reusable building blocks that are only partially integrated into the generic runtime today.</p>
 
 ## Seven-Phase Lifecycle
 
 <Mermaid chart={lifecycleChart} />
 
-The lifecycle mirrors the controller contract described in `docs/architecture/overview.md`: observe the current world, rebuild context, execute a bounded move, verify it, persist what was proven, and only then evaluate whether continuing is justified.
+The lifecycle mirrors the controller contract described in `docs/architecture/overview.md`: observe the current world, select the next bounded move, verify it, persist state, and only then evaluate whether continuing is justified. The architecture modules support richer context reconstruction and memory-aware execution, but the generic controller still takes a simpler path in a few places.
 
 ## Three-Plane Separation
 
@@ -90,7 +90,7 @@ The lifecycle mirrors the controller contract described in `docs/architecture/ov
 
 - **Control plane**: deterministic Python in `loop/` handles phase ordering, budgets, and checkpointing.
 - **Execution plane**: `adk/`, `context/`, and `tools/` translate a bounded action into model and tool work.
-- **Data plane**: `state/`, `memory/`, and `events/` preserve authoritative facts, verified lessons, and traces.
+- **Data plane**: `state/`, `memory/`, and `events/` preserve authoritative facts, reusable lessons, and traces.
 
 ## Module Map
 
@@ -100,26 +100,26 @@ The package split is intentionally plain:
 
 - `loop/` owns the lifecycle, policies, recovery, and checkpoints.
 - `adk/` absorbs ADK version churn through agents, runner helpers, workflow helpers, and a compatibility layer.
-- `context/` reconstructs per-iteration prompts from goal, constraints, state, memory, failures, and budget status.
+- `context/` implements reusable prompt reconstruction from goal, constraints, state, memory, failures, and budget status, though the generic controller currently assembles simpler PLAN and REFLECT prompts directly.
 - `memory/`, `state/`, and `events/` keep long-lived records inspectable and local-first.
-- `evaluation/` runs deterministic validators before any model judge can influence the score.
+- `evaluation/` includes deterministic validators and composite policy helpers, although the generic controller currently uses inline average-score and all-pass logic rather than the richer composite helper.
 
 ## Deterministic Shell Principle
 
 <div class="callout">
-  <strong>Models propose; deterministic code decides.</strong> `PLAN` and `REFLECT` may use model output. `DECIDE` does not. Tool approval, lifecycle transitions, budget checks, and terminal outcomes belong to deterministic code paths.
+  <strong>Models propose; deterministic code decides.</strong> `PLAN` and `REFLECT` may use model output. `DECIDE` does not. Lifecycle transitions and terminal outcomes belong to deterministic code paths, while some policy metadata such as tool approval and richer evaluation composition is implemented outside the generic controller's current enforcement path.
 </div>
 
 That principle gives the repo its core trust boundaries:
 
 - current facts come from state, not prompt memory
-- verified lessons require evidence before promotion
+- promotion helpers require evidence before lessons are verified
 - irreversible operations can be separated from routine reads and reversible writes
 - traces can be redacted without losing lifecycle visibility
 
 ## Budget Enforcement
 
-The controller checks budgets before each action instead of treating exhaustion as a model judgment.
+Budget exhaustion is a deterministic stop condition rather than a model judgment.
 
 | Budget | Why it exists | Terminal outcome |
 | --- | --- | --- |
@@ -129,7 +129,7 @@ The controller checks budgets before each action instead of treating exhaustion 
 | Elapsed duration | Avoid stale or hanging runs | `BUDGET_EXHAUSTED` |
 | Stagnation threshold | Stop repeated non-progress | `STAGNATED` |
 
-The default stopping order is equally explicit: fatal error, success, budget exhaustion, stagnation, duration exhaustion, otherwise continue.
+In the current controller, model and tool counters are recorded after those calls complete and exhaustion is applied in stopping logic. The default stopping order is still explicit: fatal error, success, budget exhaustion, stagnation, duration exhaustion, otherwise continue.
 
 ## Key Design Decisions
 
