@@ -11,7 +11,10 @@ a working demonstration and a reusable starter kit.
 
 A useful agentic loop combines durable state, selective memory, bounded
 execution, verification, explicit progress tracking, and deterministic
-stopping conditions.
+stopping conditions. In the current repository, the deterministic controller
+and state/checkpointing path are the most fully integrated pieces; context,
+memory, evaluation, and tool-governance modules are implemented, but not all
+of them are yet wired into the generic runtime flow.
 
 ## Design Principles
 
@@ -40,6 +43,14 @@ stopping conditions.
 - Progress and stagnation detection
 - Recovery policies for model/tool/timeout failures
 
+Current controller behavior:
+- PLAN and REFLECT currently use direct prompt assembly rather than the
+  reusable `ContextBuilder`
+- Pending actions are stored as strings in the generic controller, even
+  though a typed `ActionProposal` model exists
+- Terminal `Decision` values are richer than the current `RunStatus`
+  mapping used by the controller
+
 ### ADK Integration
 - Agent factory (Gemini as default)
 - Workflow construction (Workflow graph API)
@@ -53,17 +64,31 @@ stopping conditions.
 - Configurable selectors with limits
 - Context manifests in traces
 
+Status:
+- Implemented as a reusable builder module
+- Not yet the default PLAN/REFLECT path in `LoopController`
+
 ### Verification Subsystem
 - Deterministic evaluators (schema, lint, tests, constraints)
 - Model-based evaluators (clarity, coherence, coverage)
 - Composite evaluator with DETERMINISTIC_VETO default
 - Evaluation results with evidence references
 
+Status:
+- Composite evaluation policies are implemented
+- The generic controller currently uses inline average-score tracking plus an
+  all-pass success rule instead of delegating to the composite helper
+
 ### Memory System
 - Vendor-neutral interface
 - SQLite default with FTS5 search
 - CANDIDATE → VERIFIED → STALE → INVALIDATED lifecycle
 - Evidence-gated promotion
+
+Status:
+- Store and promoter are implemented
+- Promotion is evidence-gated through the promoter API
+- Cross-run retrieval and promotion are not yet part of the generic controller
 
 ### Event System
 - Append-only JSONL event recorder
@@ -94,6 +119,11 @@ stopping conditions.
 - Shell scripts for one-click example runs
 - Trace viewer
 
+### Tool Governance
+- Side-effect metadata, approval flags, timeout settings, and idempotency
+  metadata are defined for sandbox tools
+- The generic controller does not yet enforce tool metadata directly
+
 ## Acceptance Criteria
 
 ### Phase 1-3 — Foundation
@@ -114,6 +144,10 @@ stopping conditions.
 - [ ] Fake model adapter works for all loop patterns
 - [ ] Context builder produces manifests
 - [ ] All reusable patterns have tests
+
+Clarification:
+- These capabilities exist in the repository at the component level, but not
+  all subsystems are integrated into the default controller path
 
 ### Phase 6 — Example 1
 - [ ] Refinement loop runs with fake model
@@ -137,6 +171,11 @@ stopping conditions.
 - [ ] Failure memory prevents repeated equivalent patches
 - [ ] Interrupt and resume works
 - [ ] All quality gates pass (tests, lint, type check)
+
+Clarification:
+- Sandbox constraints and tool metadata are implemented
+- Failure-memory behavior depends on example-specific wiring rather than the
+  generic controller alone
 
 ### Phase 9 — Developer UX
 - [ ] All CLI commands work
