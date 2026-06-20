@@ -28,6 +28,15 @@ dev = [
     { name = "ruff" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-mock" },
+    { name = "ruff" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.21" },
@@ -43,6 +52,15 @@ requires-dist = [
     { name = "structlog", specifier = ">=24,<25" },
 ]
 provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.17,<2" },
+    { name = "pytest", specifier = ">=8,<9" },
+    { name = "pytest-asyncio", specifier = ">=1,<2" },
+    { name = "pytest-mock", specifier = ">=3,<4" },
+    { name = "ruff", specifier = ">=0.13,<1" },
+]
 
 [[package]]
 name = "aiosqlite"
